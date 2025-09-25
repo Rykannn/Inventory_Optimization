@@ -1,5 +1,0 @@
-material_name,current_stock,unit,expiry_date,cost_per_unit,minimum_stock_level,dish_name,quantity_needed,max_dishes_possible,days_until_expiry
-Fish Fillet,15,kg,2025-09-26 12:38:16.350308,45.67034606662688,6,Fish Soup,0.25,60,0
-Onions,67,pieces,2025-09-26 12:38:16.350308,23.877163165124465,12,Chicken Curry,0.1,670,0
-Onions,67,pieces,2025-09-26 12:38:16.350308,23.877163165124465,12,Fish Soup,0.1,670,0
-Garlic,28,pieces,2025-09-27 12:38:16.350308,43.38334933698947,10,Pasta Marinara,0.02,1400,1
