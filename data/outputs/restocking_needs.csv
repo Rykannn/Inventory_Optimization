@@ -1,0 +1,3 @@
+material_name,total_material_needed,current_stock,minimum_stock_level,cost_per_unit,shortage,needs_restocking,restock_quantity,restock_cost
+Fish Fillet,25.5,15,6,45.67034606662688,10.5,True,10.5,479.5386336995822
+Beef Tenderloin,33.2,12,12,18.662960178108207,21.200000000000003,True,21.200000000000003,395.65475577589405
