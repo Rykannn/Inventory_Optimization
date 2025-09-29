@@ -39,6 +39,7 @@ def main():
     print(f"Forecast Period: {summary['forecast_period_days']} days")
     print(f"Materials Requiring Restock: {summary['materials_to_restock']}")
     print(f"Materials Near Expiry: {summary['materials_near_expiry']}")
+    print(f"Recommended Dishes: {summary['recommended_dishes']}")
     print(f"Total Restocking Cost: ${summary['total_restock_cost']:.2f}")
     
     # Display demand forecast
@@ -72,6 +73,22 @@ def main():
     else:
         print("\n✓ No materials near expiry!")
     
+    # Display dish recommendations
+    if not report['dish_recommendations'].empty:
+        print("\n" + "-"*50)
+        print("           RECOMMENDED DISHES")
+        print("-"*50)
+        recommendations = report['dish_recommendations'].head(5)
+        for _, row in recommendations.iterrows():
+            expiry_info = " (🔥 Uses expiring materials)" if row['uses_expiring_materials'] else ""
+            expiring_materials = ", ".join(row['expiring_materials_used']) if row['expiring_materials_used'] else "None"
+            print(f"{row['dish_name']:20s}: Score {row['recommendation_score']:.2f} | Max {row['max_servings_possible']:3d} servings | ${row['cost_per_serving']:.2f}/serving{expiry_info}")
+            if row['expiring_materials_used']:
+                print(f"{'':21s}  → Uses expiring: {expiring_materials}")
+        print(f"\n   Season: {recommendations.iloc[0]['season'].title()} | Weather-based preferences applied")
+    else:
+        print("\n! No dish recommendations available!")
+
     # Create visualizations
     print("\n4. Generating visualizations...")
     
@@ -96,6 +113,10 @@ def main():
         print("   ✓ Creating seasonal trends plot...")
         visualizer.plot_seasonal_trends(optimizer.orders_data, 'data/png/seasonal_trends.png')
         
+        if not report['dish_recommendations'].empty:
+            print("   ✓ Creating dish recommendations plot...")
+            visualizer.plot_dish_recommendations(report['dish_recommendations'], 'data/png/dish_recommendations.png')
+        
 
             
     except Exception as e:
@@ -112,6 +133,8 @@ def main():
             report['restocking_needs'].to_csv('data/csv/restocking_needs.csv', index=False)
         if not report['near_expiry_materials'].empty:
             report['near_expiry_materials'].to_csv('data/csv/near_expiry_materials.csv', index=False)
+        if not report['dish_recommendations'].empty:
+            report['dish_recommendations'].to_csv('data/csv/dish_recommendations.csv', index=False)
         optimizer.inventory_data.to_csv('data/csv/current_inventory.csv', index=False)
         print("   ✓ All reports saved to 'data/csv/' directory")
     except Exception as e:

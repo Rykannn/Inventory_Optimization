@@ -214,3 +214,81 @@ class InventoryVisualizer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.show()
+    
+    def plot_dish_recommendations(self, recommendations_data: pd.DataFrame, save_path: str = None):
+        """
+        Create visualization for dish recommendations.
+        """
+        if recommendations_data.empty:
+            print("No dish recommendations available!")
+            return
+        
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+        
+        # 1. Recommendation scores by dish
+        colors = ['gold' if urgent else 'lightblue' 
+                 for urgent in recommendations_data['uses_expiring_materials']]
+        bars1 = ax1.barh(recommendations_data['dish_name'], 
+                        recommendations_data['recommendation_score'], 
+                        color=colors)
+        ax1.set_title('Dish Recommendation Scores', fontsize=14, fontweight='bold')
+        ax1.set_xlabel('Recommendation Score')
+        
+        # Add score labels on bars
+        for i, (bar, score) in enumerate(zip(bars1, recommendations_data['recommendation_score'])):
+            ax1.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height()/2, 
+                    f'{score:.2f}', va='center', fontsize=10)
+        
+        # 2. Maximum servings possible
+        bars2 = ax2.bar(recommendations_data['dish_name'], 
+                       recommendations_data['max_servings_possible'],
+                       color='lightgreen')
+        ax2.set_title('Maximum Servings Possible', fontsize=14, fontweight='bold')
+        ax2.set_ylabel('Servings')
+        ax2.tick_params(axis='x', rotation=45)
+        
+        # Add serving labels on bars
+        for bar, servings in zip(bars2, recommendations_data['max_servings_possible']):
+            ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, 
+                    str(servings), ha='center', va='bottom', fontsize=10)
+        
+        # 3. Cost efficiency vs Expiry urgency scatter plot
+        scatter = ax3.scatter(recommendations_data['cost_efficiency_score'], 
+                            recommendations_data['expiry_urgency_score'],
+                            s=recommendations_data['recommendation_score']*50,
+                            c=recommendations_data['seasonal_preference_score'],
+                            cmap='RdYlGn', alpha=0.7)
+        ax3.set_title('Cost Efficiency vs Expiry Urgency', fontsize=14, fontweight='bold')
+        ax3.set_xlabel('Cost Efficiency Score')
+        ax3.set_ylabel('Expiry Urgency Score')
+        ax3.grid(True, alpha=0.3)
+        
+        # Add dish names as labels
+        for i, dish in enumerate(recommendations_data['dish_name']):
+            ax3.annotate(dish, 
+                        (recommendations_data['cost_efficiency_score'].iloc[i], 
+                         recommendations_data['expiry_urgency_score'].iloc[i]),
+                        xytext=(5, 5), textcoords='offset points',
+                        fontsize=8, alpha=0.8)
+        
+        # Add colorbar for seasonal preference
+        cbar = plt.colorbar(scatter, ax=ax3)
+        cbar.set_label('Seasonal Preference Score')
+        
+        # 4. Score components breakdown
+        score_components = recommendations_data[['dish_name', 'material_availability_score', 
+                                               'expiry_urgency_score', 'seasonal_preference_score', 
+                                               'cost_efficiency_score']].set_index('dish_name')
+        
+        score_components.plot(kind='bar', stacked=True, ax=ax4, 
+                            color=['skyblue', 'orange', 'lightgreen', 'pink'])
+        ax4.set_title('Recommendation Score Components', fontsize=14, fontweight='bold')
+        ax4.set_ylabel('Score')
+        ax4.tick_params(axis='x', rotation=45)
+        ax4.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.show()

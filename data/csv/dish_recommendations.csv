@@ -1,0 +1,6 @@
+dish_name,max_servings_possible,cost_per_serving,recommendation_score,material_availability_score,expiry_urgency_score,seasonal_preference_score,cost_efficiency_score,season,uses_expiring_materials,expiring_materials_used
+Vegetable Salad,293,15.48,2.6,2.0,4.5,1.0,0.0,fall,True,"['Olive Oil', 'Mixed Vegetables']"
+Beef Steak,50,3.54,1.84,1.78,2.5,1.2,0.65,fall,True,"['Salt', 'Pepper']"
+Chicken Curry,160,8.83,1.41,2.0,1.5,1.0,0.12,fall,True,['Chicken Breast']
+Pasta Marinara,175,8.13,1.24,1.94,1.0,1.2,0.19,fall,True,['Garlic']
+Fish Soup,300,9.35,0.81,2.0,0.0,1.0,0.06,fall,False,[]

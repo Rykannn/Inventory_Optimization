@@ -288,11 +288,13 @@ class InventoryOptimizer:
         material_requirements = self.calculate_material_requirements(demand_forecast)
         restocking_needs = self.calculate_restocking_needs(material_requirements)
         near_expiry = self.find_near_expiry_materials(3)
+        dish_recommendations = self.recommend_dishes(5)
         
         # Calculate summary statistics
         total_restock_cost = restocking_needs['restock_cost'].sum() if not restocking_needs.empty else 0
         materials_to_restock = len(restocking_needs) if not restocking_needs.empty else 0
         materials_near_expiry = len(near_expiry['material_name'].unique()) if not near_expiry.empty else 0
+        recommended_dishes = len(dish_recommendations) if not dish_recommendations.empty else 0
         
         report = {
             'summary': {
@@ -300,12 +302,168 @@ class InventoryOptimizer:
                 'total_restock_cost': total_restock_cost,
                 'materials_to_restock': materials_to_restock,
                 'materials_near_expiry': materials_near_expiry,
+                'recommended_dishes': recommended_dishes,
                 'report_generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             },
             'demand_forecast': demand_forecast,
             'material_requirements': material_requirements,
             'restocking_needs': restocking_needs,
-            'near_expiry_materials': near_expiry
+            'near_expiry_materials': near_expiry,
+            'dish_recommendations': dish_recommendations
         }
         
         return report
+    
+    def _get_weather_preferences(self) -> Dict:
+        """Get dish preferences based on weather/season."""
+        current_month = datetime.now().month
+        
+        # Simulate weather preferences based on season
+        if current_month in [12, 1, 2]:  # Winter
+            return {
+                'preferred_dishes': ['Chicken Curry', 'Fish Soup'],
+                'season': 'winter',
+                'temperature_factor': 'cold',
+                'preference_multiplier': 1.4
+            }
+        elif current_month in [6, 7, 8]:  # Summer
+            return {
+                'preferred_dishes': ['Vegetable Salad', 'Fish Soup'],
+                'season': 'summer',
+                'temperature_factor': 'hot',
+                'preference_multiplier': 1.3
+            }
+        elif current_month in [3, 4, 5]:  # Spring
+            return {
+                'preferred_dishes': ['Vegetable Salad', 'Pasta Marinara'],
+                'season': 'spring',
+                'temperature_factor': 'mild',
+                'preference_multiplier': 1.2
+            }
+        else:  # Fall
+            return {
+                'preferred_dishes': ['Beef Steak', 'Pasta Marinara'],
+                'season': 'fall',
+                'temperature_factor': 'cool',
+                'preference_multiplier': 1.2
+            }
+    
+    def recommend_dishes(self, max_recommendations: int = 5) -> pd.DataFrame:
+        """
+        Recommend dishes based on available materials, expiry dates, weather, and seasonal factors.
+        """
+        if any(data is None for data in [self.inventory_data, self.recipes_data]):
+            raise ValueError("Inventory and recipe data must be loaded first.")
+        
+        # Get current weather preferences
+        weather_prefs = self._get_weather_preferences()
+        
+        # Find materials near expiry (within 5 days)
+        near_expiry = self.find_near_expiry_materials(5)
+        expiry_materials = set(near_expiry['material_name'].unique()) if not near_expiry.empty else set()
+        
+        # Get all possible dishes
+        all_dishes = self.recipes_data['dish_name'].unique()
+        recommendations = []
+        
+        for dish in all_dishes:
+            dish_recipes = self.recipes_data[self.recipes_data['dish_name'] == dish]
+            
+            # Check if we have all required materials
+            required_materials = set(dish_recipes['material_name'])
+            available_materials = set(self.inventory_data['material_name'])
+            
+            if not required_materials.issubset(available_materials):
+                continue  # Skip if we don't have all required materials
+            
+            # Calculate feasibility score
+            score_components = {
+                'material_availability': 0,
+                'expiry_urgency': 0,
+                'seasonal_preference': 0,
+                'cost_efficiency': 0
+            }
+            
+            total_cost = 0
+            max_servings = float('inf')
+            urgency_bonus = 0
+            
+            # Analyze each required material
+            for _, recipe_row in dish_recipes.iterrows():
+                material_name = recipe_row['material_name']
+                qty_needed = recipe_row['quantity_needed']
+                
+                # Get material info from inventory
+                material_info = self.inventory_data[
+                    self.inventory_data['material_name'] == material_name
+                ].iloc[0]
+                
+                current_stock = material_info['current_stock']
+                cost_per_unit = material_info['cost_per_unit']
+                
+                # Calculate maximum servings possible with this material
+                possible_servings = int(current_stock / qty_needed)
+                max_servings = min(max_servings, possible_servings)
+                
+                # Calculate cost for this material
+                total_cost += qty_needed * cost_per_unit
+                
+                # Material availability score (higher stock = higher score)
+                stock_ratio = current_stock / (material_info['minimum_stock_level'] + 1)
+                score_components['material_availability'] += min(stock_ratio, 2.0)
+                
+                # Expiry urgency bonus (higher bonus for using near-expiry materials)
+                if material_name in expiry_materials:
+                    expiry_info = near_expiry[near_expiry['material_name'] == material_name]
+                    if not expiry_info.empty:
+                        days_until_expiry = expiry_info['days_until_expiry'].min()
+                        # Higher bonus for more urgent expiry
+                        urgency_bonus += max(0, (5 - days_until_expiry) * 0.5)
+            
+            if max_servings <= 0:
+                continue  # Can't make this dish
+            
+            # Normalize material availability score
+            score_components['material_availability'] /= len(dish_recipes)
+            score_components['expiry_urgency'] = urgency_bonus
+            
+            # Seasonal preference score
+            if dish in weather_prefs['preferred_dishes']:
+                score_components['seasonal_preference'] = weather_prefs['preference_multiplier']
+            else:
+                score_components['seasonal_preference'] = 1.0
+            
+            # Cost efficiency score (lower cost per serving = higher score)
+            cost_per_serving = total_cost
+            score_components['cost_efficiency'] = max(0, (10 - cost_per_serving) / 10)
+            
+            # Calculate overall recommendation score
+            overall_score = (
+                score_components['material_availability'] * 0.3 +
+                score_components['expiry_urgency'] * 0.4 +
+                score_components['seasonal_preference'] * 0.2 +
+                score_components['cost_efficiency'] * 0.1
+            )
+            
+            recommendations.append({
+                'dish_name': dish,
+                'max_servings_possible': max_servings,
+                'cost_per_serving': round(cost_per_serving, 2),
+                'recommendation_score': round(overall_score, 2),
+                'material_availability_score': round(score_components['material_availability'], 2),
+                'expiry_urgency_score': round(score_components['expiry_urgency'], 2),
+                'seasonal_preference_score': round(score_components['seasonal_preference'], 2),
+                'cost_efficiency_score': round(score_components['cost_efficiency'], 2),
+                'season': weather_prefs['season'],
+                'uses_expiring_materials': bool(required_materials.intersection(expiry_materials)),
+                'expiring_materials_used': list(required_materials.intersection(expiry_materials))
+            })
+        
+        # Convert to DataFrame and sort by recommendation score
+        recommendations_df = pd.DataFrame(recommendations)
+        if not recommendations_df.empty:
+            recommendations_df = recommendations_df.sort_values(
+                'recommendation_score', ascending=False
+            ).head(max_recommendations).reset_index(drop=True)
+        
+        return recommendations_df

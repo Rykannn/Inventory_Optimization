@@ -1,3 +1,2 @@
 material_name,total_material_needed,current_stock,minimum_stock_level,cost_per_unit,shortage,needs_restocking,restock_quantity,restock_cost
-Fish Fillet,24.25,11,12,9.989665712546199,13.25,True,13.25,132.36307069123714
-Chicken Breast,37.5,32,10,11.761064426343133,5.5,True,5.5,64.68585434488723
+Beef Tenderloin,32.400000000000006,20,14,7.469327633498754,12.400000000000006,True,12.400000000000006,92.61966265538459
